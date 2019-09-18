@@ -18,6 +18,6 @@ public class RandomCommand extends HystrixCommand<String> {
 
     @Override
     protected String getFallback() {
-        return "oh, year.";
+        return "oh, yeah.";
     }
 }

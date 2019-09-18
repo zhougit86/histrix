@@ -12,8 +12,8 @@ import java.io.IOException;
 
 public class HystrixHBaseItemStorage implements ItemStorage {
 
-    private static final String ITEM_TABLE = "item_table";
-    private static final String COLUMN_FAMILY = "cf";
+    private static final String ITEM_TABLE = "flink_table";
+    private static final String COLUMN_FAMILY = "cf1";
 
     private Connection masterConn;
 
@@ -167,7 +167,8 @@ public class HystrixHBaseItemStorage implements ItemStorage {
     }
 
     public Item getById(String id) throws IOException {
-        ItemStorageResult<Item> itemItemStorageResult = new HystrixGetCommand(id, this.masterConn, this.slaveConn).execute();
+        ItemStorageResult<Item> itemItemStorageResult = new HystrixGetCommand(id, this.masterConn, this.slaveConn)
+                .execute();
         if(!itemItemStorageResult.isSuccess()) {
             throw new IOException(itemItemStorageResult.getLastException());
         } else {

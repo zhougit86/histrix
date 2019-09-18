@@ -28,8 +28,11 @@ public class MetricsMain {
         Thread checker = new Thread(new Runnable() {
             public void run() {
                 while (true) {
-                    HystrixCommandMetrics metrics = HystrixCommandMetrics.getInstance(HystrixCommandKey.Factory.asKey(RandomCommand.class.getSimpleName()));
-                    System.out.println("metrics:" + (  metrics == null ? "not initialized" : getStatsStringFromMetrics(metrics)));
+
+                    HystrixCommandKey keyName = HystrixCommandKey.Factory.
+                            asKey(RandomCommand.class.getSimpleName());
+                    HystrixCommandMetrics metrics = HystrixCommandMetrics.getInstance(keyName);
+                    System.out.println( keyName + ":metrics:" + (  metrics == null ? "not initialized" : getStatsStringFromMetrics(metrics)));
 
 //                    try {
 //                        Class<?> clazz = Class.forName(HystrixCommandMetrics.class.getName());
