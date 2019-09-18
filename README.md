@@ -3,3 +3,7 @@
 ## Introduction
 
 As is known to all, HBase is a CA system in distributed storage area. This constraints the usage area.Some critical application cannot pick HBase as the backend storage. 
+
+
+
+https://github.com/Netflix/Hystrix/wiki/How-To-Use

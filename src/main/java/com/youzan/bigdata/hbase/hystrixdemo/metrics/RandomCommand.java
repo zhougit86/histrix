@@ -10,9 +10,13 @@ public class RandomCommand extends HystrixCommand<String> {
     }
 
     protected String run() throws Exception {
-        if(Math.random() > 0.9) {
+        double ranNum = Math.random();
+        if(ranNum>0.7)
+        Thread.sleep(700);
+        if(ranNum > 0.9) {
             throw new Exception("run");
         }
+
         return "yeah.";
     }
 
