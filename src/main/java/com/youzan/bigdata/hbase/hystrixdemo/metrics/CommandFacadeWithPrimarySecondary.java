@@ -25,7 +25,8 @@ import static org.junit.Assert.assertEquals;
  */
 public class CommandFacadeWithPrimarySecondary extends HystrixCommand<String> {
 
-    private final static DynamicBooleanProperty usePrimary = DynamicPropertyFactory.getInstance().getBooleanProperty("primarySecondary.usePrimary", true);
+    private final static DynamicBooleanProperty usePrimary =
+            DynamicPropertyFactory.getInstance().getBooleanProperty("primarySecondary.usePrimary", true);
 
     private final int id;
 

@@ -43,7 +43,6 @@ public class MetricsMain {
                                 asKey(RandomCommand.class.getSimpleName());
                         HystrixCommandMetrics metrics = HystrixCommandMetrics.getInstance(
                                 HystrixCommandKey.Factory.asKey("PrimarySecondaryCommand")
-
                         );
                         System.out.println( keyName + ":metrics:" + (  metrics == null ? "not initialized" : getStatsStringFromMetrics(metrics)));
 
@@ -75,12 +74,7 @@ public class MetricsMain {
         checker.start();
 
         for (int i = 0; i < 10000; i++) {
-            es.submit(new Runnable() {
-                @Override
-                public void run() {
-                    new RandomCommand().execute();
-                }
-            });
+            es.submit(new myRun(i));
 
             try {
                 Thread.sleep(10);
@@ -90,5 +84,18 @@ public class MetricsMain {
         }
 
 
+    }
+
+
+}
+
+class myRun implements Runnable{
+    private int id;
+    public myRun(int id){
+        this.id = id;
+    }
+
+    public void run(){
+        new RandomCommand(id).execute();
     }
 }
