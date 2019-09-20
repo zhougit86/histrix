@@ -26,7 +26,7 @@ public class RandomCommand extends HystrixCommand<String> {
                         // 2 others commands that are already thread isolated
                         HystrixCommandProperties.Setter()
                                 .withExecutionIsolationStrategy(HystrixCommandProperties.ExecutionIsolationStrategy.SEMAPHORE)
-                                .withCircuitBreakerEnabled(true)
+                                .withCircuitBreakerEnabled(false)
 //                                .withCircuitBreakerErrorThresholdPercentage(50)
                                 .withCircuitBreakerErrorThresholdPercentage(15)//(1)错误百分比超过5%
                                 .withCircuitBreakerRequestVolumeThreshold(150)//(2)10s以内调用次数10次，同时满足(1)(2)熔断器打开
@@ -106,7 +106,7 @@ public class RandomCommand extends HystrixCommand<String> {
 
     @Override
     protected String getFallback() {
-        System.out.println("falling back");
+//        System.out.println("falling back");
         return "oh, yeah.";
     }
 }

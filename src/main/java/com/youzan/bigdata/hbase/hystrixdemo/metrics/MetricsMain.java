@@ -3,12 +3,16 @@ package com.youzan.bigdata.hbase.hystrixdemo.metrics;
 import com.netflix.hystrix.HystrixCommandKey;
 import com.netflix.hystrix.HystrixCommandMetrics;
 import com.netflix.hystrix.HystrixEventType;
+import com.netflix.hystrix.strategy.HystrixPlugins;
 import com.youzan.bigdata.hbase.hystrixdemo.metrics.commands.PrimaryCommand;
 import com.youzan.bigdata.hbase.hystrixdemo.metrics.commands.RandomCommand;
 import com.youzan.bigdata.hbase.hystrixdemo.metrics.commands.SecondaryCommand;
+import com.youzan.bigdata.hbase.hystrixdemo.metrics.testcommand.TestCommand;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+
+import static com.netflix.hystrix.HystrixEventType.THREAD_POOL_REJECTED;
 
 
 public class MetricsMain {
@@ -25,16 +29,18 @@ public class MetricsMain {
             m.append("75th: ").append(metrics.getExecutionTimePercentile(75)).append(" ");
             m.append("90th: ").append(metrics.getExecutionTimePercentile(90)).append(" ");
             m.append("99th: ").append(metrics.getExecutionTimePercentile(99)).append(" ");
-            m.append(":::").append(pmetrics==null?"":   pmetrics.getHealthCounts().getTotalRequests());
-            m.append(":::").append(smetrics==null?"": smetrics.getHealthCounts().getTotalRequests());
-//            m.append(":::").append(metrics.getCommandKey());
+//            m.append(":::").append(pmetrics==null?"":   pmetrics.getHealthCounts().getTotalRequests());
+//            m.append(":::").append(smetrics==null?"": smetrics.getHealthCounts().getTotalRequests());
+            m.append(":::").append(metrics.getCumulativeCount(THREAD_POOL_REJECTED));
         }
         return m.toString();
     }
 
     public static void main(String[] args) {
+        HystrixPlugins.reset();
+//        System.err.println(HystrixPlugins.getInstance().getDynamicProperties());
 
-        ExecutorService es =  Executors.newFixedThreadPool(5);
+        ExecutorService es =  Executors.newFixedThreadPool(50);
 
         Thread checker = new Thread(new Runnable() {
             public void run() {
@@ -111,6 +117,7 @@ class myRun implements Runnable{
     }
 
     public void run(){
-        new RandomCommand(id).execute();
+//        new RandomCommand(id).execute();
+        new TestCommand(id).execute();
     }
 }
