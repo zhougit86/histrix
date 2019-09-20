@@ -1,19 +1,21 @@
 package com.youzan.bigdata.hbase.hystrixdemo.metrics;
 
-import com.netflix.hystrix.HystrixCommandGroupKey;
 import com.netflix.hystrix.HystrixCommandKey;
 import com.netflix.hystrix.HystrixCommandMetrics;
 import com.netflix.hystrix.HystrixEventType;
+import com.youzan.bigdata.hbase.hystrixdemo.metrics.commands.PrimaryCommand;
+import com.youzan.bigdata.hbase.hystrixdemo.metrics.commands.RandomCommand;
+import com.youzan.bigdata.hbase.hystrixdemo.metrics.commands.SecondaryCommand;
 
-import java.io.IOException;
-import java.lang.reflect.Method;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 
 public class MetricsMain {
 
-    private static String getStatsStringFromMetrics(HystrixCommandMetrics metrics) {
+    private static String getStatsStringFromMetrics(HystrixCommandMetrics metrics
+            ,HystrixCommandMetrics pmetrics
+            ,HystrixCommandMetrics smetrics) {
         StringBuilder m = new StringBuilder();
         if (metrics != null) {
             HystrixCommandMetrics.HealthCounts health = metrics.getHealthCounts();
@@ -23,8 +25,8 @@ public class MetricsMain {
             m.append("75th: ").append(metrics.getExecutionTimePercentile(75)).append(" ");
             m.append("90th: ").append(metrics.getExecutionTimePercentile(90)).append(" ");
             m.append("99th: ").append(metrics.getExecutionTimePercentile(99)).append(" ");
-            m.append(":::").append(metrics.getCumulativeCount(HystrixEventType.SHORT_CIRCUITED));
-//            m.append(":::").append(metrics.get);
+            m.append(":::").append(pmetrics==null?"":   pmetrics.getHealthCounts().getTotalRequests());
+            m.append(":::").append(smetrics==null?"": smetrics.getHealthCounts().getTotalRequests());
 //            m.append(":::").append(metrics.getCommandKey());
         }
         return m.toString();
@@ -44,7 +46,17 @@ public class MetricsMain {
                         HystrixCommandMetrics metrics = HystrixCommandMetrics.getInstance(
                                 HystrixCommandKey.Factory.asKey("PrimarySecondaryCommand")
                         );
-                        System.out.println( keyName + ":metrics:" + (  metrics == null ? "not initialized" : getStatsStringFromMetrics(metrics)));
+
+                        HystrixCommandMetrics pmetrics = HystrixCommandMetrics.getInstance(
+                                HystrixCommandKey.Factory.asKey("PrimaryCommand")
+                        );
+
+                        HystrixCommandMetrics smetrics = HystrixCommandMetrics.getInstance(
+                                HystrixCommandKey.Factory.asKey("SecondaryCommand")
+                        );
+
+                        System.out.println( keyName + ":metrics:" + (  metrics == null ? "not initialized" :
+                                getStatsStringFromMetrics(metrics,pmetrics,smetrics)));
 
                     }catch (Exception e){
                         e.printStackTrace();
@@ -72,6 +84,9 @@ public class MetricsMain {
         });
         checker.setDaemon(true);
         checker.start();
+
+        new PrimaryCommand(0,null,0);
+        new SecondaryCommand(0,null,0);
 
         for (int i = 0; i < 10000; i++) {
             es.submit(new myRun(i));
