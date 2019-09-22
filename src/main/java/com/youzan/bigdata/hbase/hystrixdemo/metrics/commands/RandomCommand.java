@@ -8,13 +8,20 @@ import com.netflix.hystrix.HystrixCommandProperties;
 import com.netflix.hystrix.HystrixThreadPoolProperties;
 import com.youzan.bigdata.hbase.hystrixdemo.metrics.hbaseClient.hbaseClient;
 
+import java.util.concurrent.ThreadLocalRandom;
 
-public class RandomCommand extends HystrixCommand<String> {
+
+public class RandomCommand extends HystrixCommand<HbaseResult> {
     private int id;
     private hbaseClient hbaseClient;
+    private boolean useSecond;
+    private double failCritial;
+    private int usePrimay =10 ;
+
+    private static final ThreadLocalRandom RANDOM =
+            ThreadLocalRandom.current();
 
     public RandomCommand(int id) {
-//        super(Setter.withGroupKey().andCommandKey().);
         super(Setter
                 .withGroupKey(HystrixCommandGroupKey.Factory.asKey("SystemX"))
                 .andCommandKey(HystrixCommandKey.Factory.asKey("PrimarySecondaryCommand"))
@@ -25,25 +32,22 @@ public class RandomCommand extends HystrixCommand<String> {
                         // we want to default to semaphore-isolation since this wraps
                         // 2 others commands that are already thread isolated
                         HystrixCommandProperties.Setter()
-                                .withExecutionIsolationStrategy(HystrixCommandProperties.ExecutionIsolationStrategy.SEMAPHORE)
-                                .withCircuitBreakerEnabled(false)
-//                                .withCircuitBreakerErrorThresholdPercentage(50)
-                                .withCircuitBreakerErrorThresholdPercentage(15)//(1)错误百分比超过5%
-                                .withCircuitBreakerRequestVolumeThreshold(150)//(2)10s以内调用次数10次，同时满足(1)(2)熔断器打开
+                            .withExecutionIsolationStrategy(HystrixCommandProperties.ExecutionIsolationStrategy.SEMAPHORE)
+                            .withCircuitBreakerEnabled(true)
+//                            .withCircuitBreakerErrorThresholdPercentage(50)
+                            .withCircuitBreakerErrorThresholdPercentage(35)//(1)错误百分比超过5%
+                            .withCircuitBreakerRequestVolumeThreshold(150)//(2)10s以内调用次数10次，同时满足(1)(2)熔断器打开
                 ));
-        this.id = id;
-        this.hbaseClient = new hbaseClient("11");
-    }
 
-    protected String run() throws Exception {
 
         HystrixCommandMetrics metrics = HystrixCommandMetrics.getInstance(
                 HystrixCommandKey.Factory.asKey("PrimarySecondaryCommand")
         );
 
+        useSecond = false;
+
         //mock for highspeed failure
         long movingCounting = metrics.getHealthCounts().getTotalRequests();
-        long failureRate = metrics.getHealthCounts().getErrorPercentage();
 
         //=============================
 
@@ -55,58 +59,82 @@ public class RandomCommand extends HystrixCommand<String> {
         long pmovingCounting = pmetrics.getHealthCounts().getTotalRequests();
         long pfailureRate = pmetrics.getHealthCounts().getErrorPercentage();
 
-        //-------------------------------
-        HystrixCommandMetrics smetrics = HystrixCommandMetrics.getInstance(
-                HystrixCommandKey.Factory.asKey("SecondaryCommand")
+
+
+        if (pmovingCounting<50){
+            failCritial = 1;
+        }else if(pmovingCounting<90){
+            failCritial = 0.96;
+        }else{
+            failCritial = 0.92;
+        }
+
+
+        if (pfailureRate>=10){
+            //十成转移
+            usePrimay = 0;
+        }else if ( pfailureRate >=5){
+            usePrimay = 5;
+        }else {
+            usePrimay = 10;
+        }
+        this.id = id;
+        this.hbaseClient = new hbaseClient("11");
+    }
+
+    private static final boolean usePrimaryByProbable(int probability){
+        if(RANDOM.nextInt(10)>(probability-1)){
+            return false;
+        }
+        return true;
+    }
+
+    public static void main(String[] args){
+        double cu = 0;
+        for(int i = 0;i<100000;i++){
+            if (usePrimaryByProbable(8)){
+                cu++;
+            }
+        }
+        System.err.println(cu/100000);
+    }
+
+    protected HbaseResult run() throws Exception {
+        HystrixCommandMetrics pmetrics = HystrixCommandMetrics.getInstance(
+                HystrixCommandKey.Factory.asKey("PrimaryCommand")
         );
 
         //mock for highspeed failure
-        long smovingCounting = smetrics.getHealthCounts().getTotalRequests();
-        long sfailureRate = smetrics.getHealthCounts().getErrorPercentage();
+        long pmovingCounting = pmetrics.getHealthCounts().getTotalRequests();
 
-        double failCritial = 1;
-        if (movingCounting<300){
-            failCritial = 1;
-        }else if(movingCounting<500){
-            failCritial = 0.8;
-        }else{
-            failCritial = 0.6;
-        }
+        useSecond = true;
 
-        int migrateRatio = 0;
-        if (pfailureRate>=35){
-            //十成转移
-            migrateRatio = 10;
-        }else if ( pfailureRate >=15){
-            migrateRatio = 5;
-        }else {
-            migrateRatio = 1;
-        }
-
-        if (id%10 >=migrateRatio){
-//            System.err.printf("%d:%d\n",pfailureRate,migrateRatio);
-            return new PrimaryCommand(id,hbaseClient,failCritial).execute();
+        if (usePrimaryByProbable(usePrimay) || pmovingCounting==0){
+            HbaseResult firstResult = new PrimaryCommand(id,hbaseClient,failCritial).execute();
+            if (!firstResult.isSuccess()){
+                throw new Exception("first attempt fail");
+            }
+            return firstResult;
         }else {
             return new SecondaryCommand(id,hbaseClient,failCritial).execute();
         }
-
-
     }
 
-    protected String actualBehave(double critial )throws Exception{
-        double ranNum = Math.random();
-//        System.err.println(ranNum);
-//        if(ranNum>0.9)
-        if(ranNum > critial) {
-            throw new Exception("run");
-        }
-
-        return "yeah.";
-    }
 
     @Override
-    protected String getFallback() {
-//        System.out.println("falling back");
-        return "oh, yeah.";
+    protected HbaseResult getFallback() {
+
+        if(useSecond)
+            return new SecondaryCommand(id,hbaseClient,failCritial).execute();
+
+        if (usePrimaryByProbable(usePrimay)){
+            HbaseResult firstResult = new PrimaryCommand(id,hbaseClient,failCritial).execute();
+            if (!firstResult.isSuccess()){
+                return new SecondaryCommand(id,hbaseClient,failCritial).execute();
+            }
+            return firstResult;
+        }else {
+            return new SecondaryCommand(id,hbaseClient,failCritial).execute();
+        }
     }
 }

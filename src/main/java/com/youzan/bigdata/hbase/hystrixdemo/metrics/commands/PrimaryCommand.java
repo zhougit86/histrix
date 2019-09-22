@@ -4,11 +4,7 @@
  */
 package com.youzan.bigdata.hbase.hystrixdemo.metrics.commands;
 
-import com.netflix.hystrix.HystrixCommand;
-import com.netflix.hystrix.HystrixCommandGroupKey;
-import com.netflix.hystrix.HystrixCommandKey;
-import com.netflix.hystrix.HystrixCommandProperties;
-import com.netflix.hystrix.HystrixThreadPoolKey;
+import com.netflix.hystrix.*;
 import com.youzan.bigdata.hbase.hystrixdemo.metrics.hbaseClient.hbaseClient;
 
 /**
@@ -17,7 +13,7 @@ import com.youzan.bigdata.hbase.hystrixdemo.metrics.hbaseClient.hbaseClient;
  * @version $Id: PrimaryCommand.java, v 0.1 2019-09-20 11:56
 zhouxiaogang Exp $$
  */
-public class PrimaryCommand extends HystrixCommand<String> {
+public class PrimaryCommand extends HystrixCommand<HbaseResult> {
 
     private final int id;
     private hbaseClient hbaseClient;
@@ -28,26 +24,35 @@ public class PrimaryCommand extends HystrixCommand<String> {
                 .withGroupKey(HystrixCommandGroupKey.Factory.asKey("SystemX"))
                 .andCommandKey(HystrixCommandKey.Factory.asKey("PrimaryCommand"))
                 .andThreadPoolKey(HystrixThreadPoolKey.Factory.asKey("PrimaryCommand"))
+                .andThreadPoolPropertiesDefaults(
+                        HystrixThreadPoolProperties.Setter()
+                                .withCoreSize(30)    //   定义了线程池的大小    netflix 大部分设置为10，极小一部分设为25
+                )
                 .andCommandPropertiesDefaults(
-                        // we default to a 600ms timeout for primary
-                        HystrixCommandProperties.Setter().withExecutionTimeoutInMilliseconds(600)));
+                        HystrixCommandProperties.Setter().withExecutionTimeoutInMilliseconds(600)
+                                .withExecutionIsolationStrategy(HystrixCommandProperties.ExecutionIsolationStrategy.THREAD)
+//                                .withCircuitBreakerEnabled(false)
+                )
+        );
         this.id = id;
         this.hbaseClient = hbaseClient;
         this.critial = critial;
     }
 
     @Override
-    protected String run() throws Exception{
+    protected HbaseResult run() throws Exception{
+        //mock code, analog for the failure
         double ranNum = Math.random();
-//        System.err.println(ranNum);
-//        if(ranNum>0.9)
         if(ranNum > critial) {
             throw new Exception("run");
         }
 
+        return new HbaseResult<Integer>(true,id);
+    }
 
-
-        return "yeah.";
+    @Override
+    protected HbaseResult getFallback() {
+        return new HbaseResult<Integer>(false,id);
     }
 
 }
