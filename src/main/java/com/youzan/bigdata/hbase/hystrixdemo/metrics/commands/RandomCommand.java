@@ -16,7 +16,8 @@ public class RandomCommand extends HystrixCommand<HbaseResult> {
     private hbaseClient hbaseClient;
     private boolean useSecond;
     private double failCritial;
-    private int usePrimay =10 ;
+    private long pmovingCounting;
+    private int usePrimay =10;
 
     private static final ThreadLocalRandom RANDOM =
             ThreadLocalRandom.current();
@@ -35,8 +36,8 @@ public class RandomCommand extends HystrixCommand<HbaseResult> {
                             .withExecutionIsolationStrategy(HystrixCommandProperties.ExecutionIsolationStrategy.SEMAPHORE)
                             .withCircuitBreakerEnabled(true)
 //                            .withCircuitBreakerErrorThresholdPercentage(50)
-                            .withCircuitBreakerErrorThresholdPercentage(35)//(1)错误百分比超过5%
-                            .withCircuitBreakerRequestVolumeThreshold(150)//(2)10s以内调用次数10次，同时满足(1)(2)熔断器打开
+                            .withCircuitBreakerErrorThresholdPercentage(8)//(1)错误百分比超过5%
+                            .withCircuitBreakerRequestVolumeThreshold(50)//(2)10s以内调用次数10次，同时满足(1)(2)熔断器打开
                 ));
 
 
@@ -56,7 +57,7 @@ public class RandomCommand extends HystrixCommand<HbaseResult> {
         );
 
         //mock for highspeed failure
-        long pmovingCounting = pmetrics.getHealthCounts().getTotalRequests();
+        pmovingCounting = pmetrics.getHealthCounts().getTotalRequests();
         long pfailureRate = pmetrics.getHealthCounts().getErrorPercentage();
 
 
@@ -73,7 +74,7 @@ public class RandomCommand extends HystrixCommand<HbaseResult> {
         if (pfailureRate>=10){
             //十成转移
             usePrimay = 0;
-        }else if ( pfailureRate >=5){
+        }else if (pfailureRate >=5){
             usePrimay = 5;
         }else {
             usePrimay = 10;
@@ -100,12 +101,7 @@ public class RandomCommand extends HystrixCommand<HbaseResult> {
     }
 
     protected HbaseResult run() throws Exception {
-        HystrixCommandMetrics pmetrics = HystrixCommandMetrics.getInstance(
-                HystrixCommandKey.Factory.asKey("PrimaryCommand")
-        );
-
         //mock for highspeed failure
-        long pmovingCounting = pmetrics.getHealthCounts().getTotalRequests();
 
         useSecond = true;
 
@@ -127,7 +123,7 @@ public class RandomCommand extends HystrixCommand<HbaseResult> {
         if(useSecond)
             return new SecondaryCommand(id,hbaseClient,failCritial).execute();
 
-        if (usePrimaryByProbable(usePrimay)){
+        if (usePrimaryByProbable(usePrimay) && pmovingCounting != 0){
             HbaseResult firstResult = new PrimaryCommand(id,hbaseClient,failCritial).execute();
             if (!firstResult.isSuccess()){
                 return new SecondaryCommand(id,hbaseClient,failCritial).execute();

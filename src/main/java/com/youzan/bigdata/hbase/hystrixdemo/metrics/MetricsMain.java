@@ -28,11 +28,14 @@ public class MetricsMain {
             HystrixCommandMetrics.HealthCounts phealth = pmetrics.getHealthCounts();
             HystrixCommandMetrics.HealthCounts shealth = smetrics.getHealthCounts();
             m.append("Requests: ").append(health.getTotalRequests()).append(" ");
-            m.append("Errors: ").append(health.getErrorCount()).append("---").append(health.getErrorPercentage()).append("%   ");
+            m.append("Errors: ").append(health.getErrorCount()).append("---").append(health.getErrorPercentage()).append("%,")
+                    .append(metrics.getCumulativeCount(HystrixEventType.SHORT_CIRCUITED)).append(",").append(metrics.getCumulativeCount(THREAD_POOL_REJECTED)).append("     ");
             m.append("pRequests: ").append(phealth.getTotalRequests()).append(" ");
-            m.append("pErrors: ").append(phealth.getErrorCount()).append("---").append(phealth.getErrorPercentage()).append("%   ");
+            m.append("pErrors: ").append(phealth.getErrorCount()).append("---").append(phealth.getErrorPercentage()).append("%,")
+                    .append(pmetrics.getCumulativeCount(HystrixEventType.SHORT_CIRCUITED)).append(",").append(pmetrics.getCumulativeCount(THREAD_POOL_REJECTED)).append("     ");
             m.append("sRequests: ").append(shealth.getTotalRequests()).append(" ");
-            m.append("sErrors: ").append(shealth.getErrorCount()).append("---").append(shealth.getErrorPercentage()).append("%   ");
+            m.append("sErrors: ").append(shealth.getErrorCount()).append("---").append(shealth.getErrorPercentage()).append("%,")
+                    .append(smetrics.getCumulativeCount(HystrixEventType.SHORT_CIRCUITED)).append(",").append(smetrics.getCumulativeCount(THREAD_POOL_REJECTED)).append("     ");
 //            m.append("Mean: ").append(metrics.getExecutionTimePercentile(50)).append(" ");
 //            m.append("75th: ").append(metrics.getExecutionTimePercentile(75)).append(" ");
 //            m.append("90th: ").append(metrics.getExecutionTimePercentile(90)).append(" ");
